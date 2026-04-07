@@ -1,0 +1,7 @@
+build/
+classes/
+__pycache__/
+*.pyc
+tests/*.asm
+tests/*.out
+tests/*.old

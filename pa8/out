@@ -1,0 +1,13 @@
+; Symbol table 
+; name a type Type.INT location 0x20000000
+; name b type Type.FLOAT location 0x20000004
+; name c type Type.FLOAT location 0x20000008
+
+.section .text
+;Current temp: 
+;IR Code: 
+LA t1, 0x20000000
+LW t2, 0(t1)
+HALT
+
+.section .strings
