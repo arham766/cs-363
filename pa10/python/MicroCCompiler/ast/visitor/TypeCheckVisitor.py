@@ -15,11 +15,8 @@ class TypeCheckVisitor(AbstractASTVisitor):
         sys.exit(7)
 
     def postprocessBinaryOpNode(self, node: BinaryOpNode, left: Any, right: Any) -> Any:
-        # Check if the right and left types match statically. 
-        # By the time this runs, left and right sub-ASTs should have populated their nodes.
         if node.getLeft().getType() != node.getRight().getType():
             self._type_error()
-        # Propagate type explicitly just in case although it happens during instantiation anyway
         node.setType(node.getLeft().getType())
         return None
 
@@ -35,7 +32,6 @@ class TypeCheckVisitor(AbstractASTVisitor):
 
     def postprocessCallNode(self, node: CallNode, args: Any) -> Any:
         ste = node.ste
-        # Call nodes ste is a FunctionSymbolTableEntry
         ste_arg_types = ste.getArgTypes()
         node_args = node.getArgs()
         
@@ -50,7 +46,6 @@ class TypeCheckVisitor(AbstractASTVisitor):
 
     def postprocessReturnNode(self, node: ReturnNode, retExpr: Any) -> Any:
         funcSymbol = node.getFuncSymbol()
-        # A return could theoretically be VOID but assume retExpr exists
         if node.getRetExpr() is not None:
             if node.getRetExpr().getType() != funcSymbol.getReturnType():
                 self._type_error()
