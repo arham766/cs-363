@@ -249,52 +249,47 @@ class CodeGenerator(AbstractASTVisitor):
 
   def preprocessFunctionNode(self, node: FunctionNode):
     self.currFunc = node.getFuncName()
-    self.intRegCount = 0
-    self.floatRegCount = 0
+    self.intRegCount = 1
+    self.floatRegCount = 1
 
   def postprocessFunctionNode(self, node: FunctionNode, body: CodeObject) -> CodeObject:
     co = CodeObject()
     co.code.append(Label(self._generateFunctionEntryLabel()))
-    co.code.append(Addi("sp", "-4", "sp"))
     co.code.append(Sw("fp", "sp", "0"))
     co.code.append(Mv("sp", "fp"))
-
-    if self.intRegCount > 0:
-        co.code.append(Addi("sp", str(-4 * self.intRegCount), "sp"))
-        for i in range(self.intRegCount):
-            co.code.append(Sw(self.intTempPrefix + str(i), "sp", str(4 * i)))
-            
-    if self.floatRegCount > 0:
-        co.code.append(Addi("sp", str(-4 * self.floatRegCount), "sp"))
-        for i in range(self.floatRegCount):
-            co.code.append(Fsw(self.floatTempPrefix + str(i), "sp", str(4 * i)))
+    co.code.append(Addi("sp", "-4", "sp"))
 
     numLocals = node.getScope().getNumLocals()
     if numLocals > 0:
         co.code.append(Addi("sp", str(-4 * numLocals), "sp"))
 
-    co.code.append(Label(self._generateFunctionCodeLabel()))
+    if self.intRegCount > 1:
+        for i in range(1, self.intRegCount):
+            co.code.append(Sw(self.intTempPrefix + str(i), "sp", "0"))
+            co.code.append(Addi("sp", "-4", "sp"))
+            
+    if self.floatRegCount > 1:
+        for i in range(1, self.floatRegCount):
+            co.code.append(Fsw(self.floatTempPrefix + str(i), "sp", "0"))
+            co.code.append(Addi("sp", "-4", "sp"))
+
     if body is not None:
         co.code.extend(body.code)
     
     co.code.append(Label(self._generateFunctionRetLabel()))
 
-    if numLocals > 0:
-        co.code.append(Addi("sp", str(4 * numLocals), "sp"))
-
-    if self.floatRegCount > 0:
-        for i in reversed(range(self.floatRegCount)):
-            co.code.append(Flw(self.floatTempPrefix + str(i), "sp", str(4 * i)))
-        co.code.append(Addi("sp", str(4 * self.floatRegCount), "sp"))
+    if self.floatRegCount > 1:
+        for i in reversed(range(1, self.floatRegCount)):
+            co.code.append(Addi("sp", "4", "sp"))
+            co.code.append(Flw(self.floatTempPrefix + str(i), "sp", "0"))
         
-    if self.intRegCount > 0:
-        for i in reversed(range(self.intRegCount)):
-            co.code.append(Lw(self.intTempPrefix + str(i), "sp", str(4 * i)))
-        co.code.append(Addi("sp", str(4 * self.intRegCount), "sp"))
+    if self.intRegCount > 1:
+        for i in reversed(range(1, self.intRegCount)):
+            co.code.append(Addi("sp", "4", "sp"))
+            co.code.append(Lw(self.intTempPrefix + str(i), "sp", "0"))
 
     co.code.append(Mv("fp", "sp"))
-    co.code.append(Lw("fp", "sp", "0"))
-    co.code.append(Addi("sp", "4", "sp"))
+    co.code.append(Lw("fp", "fp", "0"))
     co.code.append(Ret())
     return co
 
@@ -313,21 +308,19 @@ class CodeGenerator(AbstractASTVisitor):
   def postprocessCallNode(self, node: CallNode, args: List[CodeObject]) -> CodeObject:
     co = CodeObject()
     numArgs = len(args)
-    for c in reversed(args):
+    for c in args:
         if c.lval: c = self.rvalify(c)
         co.code.extend(c.code)
+        co.code.append(Sw(c.temp, "sp", "0") if c.type == Scope.Type.INT else Fsw(c.temp, "sp", "0"))
         co.code.append(Addi("sp", "-4", "sp"))
-        if c.type == Scope.Type.INT:
-            co.code.append(Sw(c.temp, "sp", "0"))
-        else:
-            co.code.append(Fsw(c.temp, "sp", "0"))
             
     co.code.append(Addi("sp", "-4", "sp"))
-    co.code.append(Addi("sp", "-4", "sp"))
     co.code.append(Sw("ra", "sp", "0"))
+    co.code.append(Addi("sp", "-4", "sp"))
     
     co.code.append(Jr(self._generateFunctionEntryLabel(node.getFuncName())))
     
+    co.code.append(Addi("sp", "4", "sp"))
     co.code.append(Lw("ra", "sp", "0"))
     co.code.append(Addi("sp", "4", "sp"))
     
@@ -341,10 +334,7 @@ class CodeGenerator(AbstractASTVisitor):
         co.code.append(Flw(temp, "sp", "0"))
         co.temp = temp
         
-    co.code.append(Addi("sp", "4", "sp"))
-    
-    if numArgs > 0:
-        co.code.append(Addi("sp", str(4 * numArgs), "sp"))
+    co.code.append(Addi("sp", str(4 * numArgs), "sp"))
         
     co.type = rt
     co.lval = False

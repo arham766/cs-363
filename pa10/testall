@@ -26,7 +26,7 @@ function status {
 }
 
 function simulate {
-	python3 "$RISCSIM" "$1" 2>/dev/null | head -n -1 > "$2"
+	python "$RISCSIM" "$1" 2>/dev/null | head -n -1 > "$2"
 }
 
 function randint {
